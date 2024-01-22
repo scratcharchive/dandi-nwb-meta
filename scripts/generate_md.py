@@ -25,6 +25,7 @@ def main():
     class NeurodataType(BaseModel):
         neurodata_type: str
         dandiset_ids: List[str]
+        paths: List[str]
 
     neurodata_types: List[NeurodataType] = []
     for a in all_assets:
@@ -34,22 +35,25 @@ def main():
                 nt = g.attrs.get('namespace', '') + '.' + g.attrs['neurodata_type']
                 existing = next((n for n in neurodata_types if n.neurodata_type == nt), None)
                 if not existing:
-                    existing = NeurodataType(neurodata_type=nt, dandiset_ids=[])
+                    existing = NeurodataType(neurodata_type=nt, dandiset_ids=[], paths=[])
                     neurodata_types.append(existing)
                 if a.dandiset_id not in existing.dandiset_ids:
                     existing.dandiset_ids.append(a.dandiset_id)
-    # sort by neurodata_type
-    neurodata_types.sort(key=lambda n: n.neurodata_type)
-    for n in neurodata_types:
-        print(f'{n.neurodata_type}: {n.dandiset_ids}')
+                if g.path not in existing.paths:
+                    existing.paths.append(g.path)
 
     # Create a markdown table with links to dandisets
-    table = []
+    table1 = []
     for n in neurodata_types:
         dandiset_links = []
         for dandiset_id in n.dandiset_ids:
             dandiset_links.append(f'[{dandiset_id}](https://dandiarchive.org/dandiset/{dandiset_id})')
-        table.append([n.neurodata_type, ' '.join(dandiset_links)])
+        table1.append([n.neurodata_type, ' '.join(dandiset_links)])
+
+    # Create a markdown table with paths
+    table2 = []
+    for n in neurodata_types:
+        table2.append([n.neurodata_type, ' '.join(_abbrievate(n.paths))])
 
     import datetime
 
@@ -59,7 +63,16 @@ def main():
         f.write('This is not an exhaustive list. It reflects only a subset of the data that have been parsed to date and favors dandisets that have been updated more recently. Only public dandisets are included.\n\n')
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         f.write(f'Last generated: {timestamp}\n\n')
-        f.write(tabulate(table, headers=['Neurodata Type', 'Dandisets'], tablefmt='github'))
+        f.write(tabulate(table1, headers=['Neurodata Type', 'Dandisets'], tablefmt='github'))
+        f.write('\n\n')
+        f.write(tabulate(table2, headers=['Neurodata Type', 'Paths'], tablefmt='github'))
+
+
+def _abbrievate(x: List[str]):
+    max_num = 15
+    if len(x) <= max_num:
+        return x
+    return x[:max_num] + [f'... and {len(x) - max_num} more...']
 
 
 if __name__ == '__main__':
