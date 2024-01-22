@@ -3,3 +3,4 @@ dandi
 h5py
 numpy
 remfile
+tabulate
