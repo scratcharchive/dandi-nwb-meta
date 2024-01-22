@@ -19,29 +19,40 @@ def process_dandisets(
     max_time: float,
     max_time_per_dandiset: float
 ):
-    url = 'https://api.dandiarchive.org/api/dandisets/?page=1&page_size=5000&ordering=-modified&draft=true&empty=false&embargoed=false'
-    with urllib.request.urlopen(url) as response:
-        X = json.loads(response.read())
-
-    dandisets = []
-    for ds in X['results']:
-        pv = ds['most_recent_published_version']
-        dv = ds['draft_version']
-        dandisets.append({
-            'dandiset_id': ds['identifier'],
-            'version': pv['version'] if pv else dv['version']
-        })
+    dandisets = fetch_all_dandisets()
 
     timer = time.time()
     for dandiset in dandisets:
         print("")
-        print(f"Processing {dandiset['dandiset_id']} version {dandiset['version']}")
-        process_dandiset(dandiset['dandiset_id'], max_time_per_dandiset)
+        print(f"Processing {dandiset.dandiset_id} version {dandiset.version}")
+        process_dandiset(dandiset.dandiset_id, max_time_per_dandiset)
         elapsed = time.time() - timer
         print(f'Time elapsed: {elapsed} seconds')
         if elapsed > max_time:
             print("Time limit reached.")
             break
+
+
+class Dandiset(BaseModel):
+    dandiset_id: str
+    version: str
+
+
+def fetch_all_dandisets():
+    url = 'https://api.dandiarchive.org/api/dandisets/?page=1&page_size=5000&ordering=-modified&draft=true&empty=false&embargoed=false'
+    with urllib.request.urlopen(url) as response:
+        X = json.loads(response.read())
+
+    dandisets: List[Dandiset] = []
+    for ds in X['results']:
+        pv = ds['most_recent_published_version']
+        dv = ds['draft_version']
+        dandisets.append(Dandiset(
+            dandiset_id=ds['identifier'],
+            version=pv['version'] if pv else dv['version']
+        ))
+
+    return dandisets
 
 
 def process_dandiset(
@@ -62,7 +73,12 @@ def process_dandiset(
         s3 = None
 
     # Load existing output
+    print('Checking for existing output')
     existing = _load_existing_output(s3, dandiset_id)
+    if existing is not None:
+        print(f'Found {len(existing.nwb_assets)} existing assets.')
+    else:
+        print('No existing output found.')
 
     # Create the dandi parsed url
     parsed_url = da.parse_dandi_url(f"https://dandiarchive.org/dandiset/{dandiset_id}")
@@ -73,6 +89,8 @@ def process_dandiset(
     )
 
     something_changed = False
+    if existing is None:
+        something_changed = True
     with parsed_url.navigate() as (client, dandiset, assets):
         asset_num = 0
         # Loop through all assets in the dandiset
@@ -270,22 +288,22 @@ def _format_shape(dataset: h5py.Dataset) -> list:
     return [int(dim) for dim in shape]
 
 
+def load_existing_output_from_bucket(dandiset_id: str) -> DandiNwbMetaDandiset:
+    with TemporaryDirectory() as tempdir:
+        object_key = _get_object_key_for_output(dandiset_id)
+        url = f'https://neurosift.org/{object_key}'
+        tmp_output_fname = os.path.join(tempdir, 'output.json.gz')
+        try:
+            _download_file(url, tmp_output_fname)
+        except urllib.error.HTTPError:
+            return None
+        return _load_existing_output_from_file(tmp_output_fname)
+
+
 def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMetaDandiset:
     """Loads the existing output for a dandiset."""
-    if True:
-        with TemporaryDirectory() as tempdir:
-            object_key = _get_object_key_for_output(dandiset_id)
-            url = f'https://neurosift.org/{object_key}'
-            print(f'Checking for existing output at {url}')
-            tmp_output_fname = os.path.join(tempdir, 'output.json.gz')
-            try:
-                _download_file(url, tmp_output_fname)
-            except urllib.error.HTTPError as e:
-                print(e)
-                print('No existing output found.')
-                return None
-            print('Existing output found.')
-            return _load_existing_output_from_file(tmp_output_fname)
+    if s3 is not None:
+        return load_existing_output_from_bucket(dandiset_id)
     else:
         output_fname = f"dandisets/{dandiset_id}.json"
         return _load_existing_output_from_file(output_fname)
@@ -307,7 +325,6 @@ def _load_existing_output_from_file(output_fname: str) -> DandiNwbMetaDandiset:
                 existing = DandiNwbMetaDandiset(**existing)
     else:
         existing = None
-    print(f'Found {len(existing.nwb_assets)} existing assets.')
     return existing
 
 
