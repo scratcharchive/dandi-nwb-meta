@@ -31,7 +31,7 @@ def main():
         groups = a.asset.nwb_metadata.groups
         for g in groups:
             if 'neurodata_type' in g.attrs:
-                nt = g.attrs['neurodata_type']
+                nt = g.attrs.get('namespace', '') + '.' + g.attrs['neurodata_type']
                 existing = next((n for n in neurodata_types if n.neurodata_type == nt), None)
                 if not existing:
                     existing = NeurodataType(neurodata_type=nt, dandiset_ids=[])

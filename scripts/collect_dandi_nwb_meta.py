@@ -3,7 +3,7 @@ from dandi_nwb_meta import process_dandisets
 
 def main():
     process_dandisets(
-        max_time=60 * 30,
+        max_time=60 * 120,
         max_time_per_dandiset=30
     )
 
