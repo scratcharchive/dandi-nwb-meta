@@ -284,7 +284,7 @@ def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMet
 
 
 def _get_object_key_for_output(dandiset_id: str) -> str:
-    return f'dandi-nwb-meta/dandsets/{dandiset_id}.json.gz'
+    return f'dandi-nwb-meta/dandisets/{dandiset_id}.json.gz'
 
 
 def _load_existing_output_from_file(output_fname: str) -> DandiNwbMetaDandiset:
