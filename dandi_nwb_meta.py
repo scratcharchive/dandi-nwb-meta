@@ -72,6 +72,7 @@ def process_dandiset(
         dandiset_id=dandiset_id, dandiset_version="draft", nwb_assets=[]
     )
 
+    something_changed = False
     with parsed_url.navigate() as (client, dandiset, assets):
         asset_num = 0
         # Loop through all assets in the dandiset
@@ -124,11 +125,15 @@ def process_dandiset(
                         )
                 # Add the asset to the dandiset
                 X.nwb_assets.append(A)
+                something_changed = True
             if time.time() - timer > max_time:
                 print("Time limit reached for this dandiset.")
                 break
-    print(f'Saving output for {dandiset_id}')
-    _save_output(s3, dandiset_id, X)
+    if not something_changed:
+        print(f'Saving output for {dandiset_id}')
+        _save_output(s3, dandiset_id, X)
+    else:
+        print(f'Not saving output for {dandiset_id} because nothing changed.')
 
 
 class H5MetadataGroup(BaseModel):
