@@ -147,7 +147,7 @@ def process_dandiset(
             if time.time() - timer > max_time:
                 print("Time limit reached for this dandiset.")
                 break
-    if not something_changed:
+    if something_changed:
         print(f'Saving output for {dandiset_id}')
         _save_output(s3, dandiset_id, X)
     else:
