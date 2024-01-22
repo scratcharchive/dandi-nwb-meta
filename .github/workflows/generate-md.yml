@@ -16,7 +16,7 @@ jobs:
           pip install -r requirements.txt
       - name: generate-md
         run: |
-          python generate_md.py
+          python scripts/generate_md.py
       - name: Commit files
         run: |
           git config --local user.email "jmagland@flatironinstitute.org"
