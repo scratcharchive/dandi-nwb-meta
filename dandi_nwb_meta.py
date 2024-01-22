@@ -267,7 +267,7 @@ def _format_shape(dataset: h5py.Dataset) -> list:
 
 def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMetaDandiset:
     """Loads the existing output for a dandiset."""
-    if s3 is not None:
+    if True:
         with TemporaryDirectory() as tempdir:
             object_key = _get_object_key_for_output(dandiset_id)
             url = f'https://neurosift.org/{object_key}'
@@ -275,7 +275,8 @@ def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMet
             tmp_output_fname = os.path.join(tempdir, 'output.json.gz')
             try:
                 _download_file(url, tmp_output_fname)
-            except urllib.error.HTTPError:
+            except urllib.error.HTTPError as e:
+                print(e)
                 print('No existing output found.')
                 return None
             print('Existing output found.')
@@ -308,7 +309,9 @@ def _load_existing_output_from_file(output_fname: str) -> DandiNwbMetaDandiset:
 def _download_file(url: str, output_fname: str):
     """Downloads a file from a URL."""
     with open(output_fname, "wb") as f:
-        with urllib.request.urlopen(url) as response:
+        # The User-Agent header is required so that cloudflare doesn't block the request
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
             chunk_size = 1024
             while True:
                 chunk = response.read(chunk_size)
