@@ -276,7 +276,9 @@ def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMet
             try:
                 _download_file(url, tmp_output_fname)
             except urllib.error.HTTPError:
+                print('No existing output found.')
                 return None
+            print('Existing output found.')
             return _load_existing_output_from_file(tmp_output_fname)
     else:
         output_fname = f"dandisets/{dandiset_id}.json"
@@ -299,6 +301,7 @@ def _load_existing_output_from_file(output_fname: str) -> DandiNwbMetaDandiset:
                 existing = DandiNwbMetaDandiset(**existing)
     else:
         existing = None
+    print(f'Found {len(existing.nwb_assets)} existing assets.')
     return existing
 
 
