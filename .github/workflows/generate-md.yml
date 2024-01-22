@@ -1,6 +1,8 @@
 name: generate-md
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "37 6 * * *" # 6:37 AM UTC every day
 jobs:
   main:
     runs-on: ubuntu-latest
