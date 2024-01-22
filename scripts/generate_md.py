@@ -24,7 +24,7 @@ def main():
 
     class NeurodataType(BaseModel):
         neurodata_type: str
-        dandiset_ids: list[str]
+        dandiset_ids: List[str]
 
     neurodata_types: List[NeurodataType] = []
     for a in all_assets:
