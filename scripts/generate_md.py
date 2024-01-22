@@ -41,19 +41,22 @@ def main():
                     existing.dandiset_ids.append(a.dandiset_id)
                 if g.path not in existing.paths:
                     existing.paths.append(g.path)
+    
+    # sort by neurodata_type
+    neurodata_types = sorted(neurodata_types, key=lambda x: x.neurodata_type)
 
     # Create a markdown table with links to dandisets
     table1 = []
     for n in neurodata_types:
         dandiset_links = []
-        for dandiset_id in n.dandiset_ids:
+        for dandiset_id in sorted(n.dandiset_ids):
             dandiset_links.append(f'[{dandiset_id}](https://dandiarchive.org/dandiset/{dandiset_id})')
         table1.append([n.neurodata_type, ' '.join(dandiset_links)])
 
     # Create a markdown table with paths
     table2 = []
     for n in neurodata_types:
-        table2.append([n.neurodata_type, ' '.join(_abbrievate(n.paths))])
+        table2.append([n.neurodata_type, ' '.join(_abbrievate(sorted(n.paths)))])
 
     import datetime
 
