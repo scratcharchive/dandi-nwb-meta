@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Dict
 from dandi_nwb_meta import fetch_all_dandisets, load_existing_output_from_bucket, DandiNwbMetaAsset
 from tabulate import tabulate
+import datetime
 
 
 def main():
@@ -54,6 +55,14 @@ def main():
             dandiset_links.append(f'[{dandiset_id}](https://dandiarchive.org/dandiset/{dandiset_id})')
         table1.append([n.neurodata_type, ' '.join(dandiset_links)])
 
+    # Write to neurodata_types.md
+    with open('neurodata_types.md', 'w') as f:
+        f.write('# Neurodata Types in DANDI Archive\n\n')
+        f.write('This is not an exhaustive list. It reflects only a subset of the data that have been parsed to date and favors dandisets that have been updated more recently. Only public dandisets are included.\n\n')
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        f.write(f'Last generated: {timestamp}\n\n')
+        f.write(tabulate(table1, headers=['Neurodata Type', 'Dandisets'], tablefmt='github'))
+
     # Create a markdown table with paths
     table2 = []
     for n in neurodata_types:
@@ -64,18 +73,14 @@ def main():
             for p in paths
         ], 10))])
 
-    import datetime
-
-    # Write to neurodata_types.md
-    with open('neurodata_types.md', 'w') as f:
+    # Write to neurodata_types_2.md
+    with open('neurodata_types_2.md', 'w') as f:
         f.write('# Neurodata Types in DANDI Archive\n\n')
         f.write('This is not an exhaustive list. It reflects only a subset of the data that have been parsed to date and favors dandisets that have been updated more recently. Only public dandisets are included.\n\n')
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        f.write(f'Last generated: {timestamp}\n\n')
-        f.write(tabulate(table1, headers=['Neurodata Type', 'Dandisets'], tablefmt='github'))
         f.write('\n\n')
         f.write(tabulate(table2, headers=['Neurodata Type', 'Paths'], tablefmt='github'))
-    
+
     # Create a markdown table with neurodata_types for dandisets
     class DandisetInfo(BaseModel):
         dandiset_id: str
