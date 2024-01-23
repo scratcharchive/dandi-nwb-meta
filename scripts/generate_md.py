@@ -60,7 +60,7 @@ def main():
         paths = n.path_counts.keys()
         paths = sorted(paths, key=lambda x: n.path_counts[x], reverse=True)
         table2.append([n.neurodata_type, ', '.join(_abbrievate([
-            f'[{p} ({n.path_counts[p]})'
+            f'[{p} ({n.path_counts[p]})]'
             for p in paths
         ], 10))])
 
