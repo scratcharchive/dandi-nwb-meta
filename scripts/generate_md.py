@@ -75,6 +75,35 @@ def main():
         f.write(tabulate(table1, headers=['Neurodata Type', 'Dandisets'], tablefmt='github'))
         f.write('\n\n')
         f.write(tabulate(table2, headers=['Neurodata Type', 'Paths'], tablefmt='github'))
+    
+    # Create a markdown table with neurodata_types for dandisets
+    class DandisetInfo(BaseModel):
+        dandiset_id: str
+        neurodata_types: List[str]
+        num_assets_processed: int
+    dandiset_infos: List[DandisetInfo] = []
+    for a in all_assets:
+        existing = next((d for d in dandiset_infos if d.dandiset_id == a.dandiset_id), None)
+        if not existing:
+            existing = DandisetInfo(dandiset_id=a.dandiset_id, neurodata_types=[], num_assets_processed=0)
+            dandiset_infos.append(existing)
+        existing.num_assets_processed += 1
+        for g in a.asset.nwb_metadata.groups:
+            if 'neurodata_type' in g.attrs:
+                nt = g.attrs.get('namespace', '') + '.' + g.attrs['neurodata_type']
+                if nt not in existing.neurodata_types:
+                    existing.neurodata_types.append(nt)
+    dandiset_infos = sorted(dandiset_infos, key=lambda x: x.dandiset_id)
+    table3 = []
+    for d in dandiset_infos:
+        dandiset_link = f'[{d.dandiset_id}](https://dandiarchive.org/dandiset/{d.dandiset_id})'
+        table3.append([dandiset_link, f'{d.num_assets_processed}', ', '.join(sorted(d.neurodata_types))])
+    with open('dandisets.md', 'w') as f:
+        f.write('# Neurodata Types in DANDI Archive\n\n')
+        f.write('This is not an exhaustive list. It reflects only a subset of the data that have been parsed to date and favors dandisets that have been updated more recently. Only public dandisets are included.\n\n')
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        f.write(f'Last generated: {timestamp}\n\n')
+        f.write(tabulate(table3, headers=['Dandiset', 'Assets Processed', 'Neurodata Types'], tablefmt='github'))
 
 
 def _abbrievate(x: List[str], max_num: int):
