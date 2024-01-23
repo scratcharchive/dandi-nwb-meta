@@ -35,7 +35,7 @@ def main():
                 nt = g.attrs.get('namespace', '') + '.' + g.attrs['neurodata_type']
                 existing = next((n for n in neurodata_types if n.neurodata_type == nt), None)
                 if not existing:
-                    existing = NeurodataType(neurodata_type=nt, dandiset_ids=[], paths=[])
+                    existing = NeurodataType(neurodata_type=nt, dandiset_ids=[], path_counts={})
                     neurodata_types.append(existing)
                 if a.dandiset_id not in existing.dandiset_ids:
                     existing.dandiset_ids.append(a.dandiset_id)
