@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 from dandi_nwb_meta import fetch_all_dandisets, load_existing_output_from_bucket, DandiNwbMetaAsset
 from tabulate import tabulate
 
@@ -25,7 +25,7 @@ def main():
     class NeurodataType(BaseModel):
         neurodata_type: str
         dandiset_ids: List[str]
-        paths: List[str]
+        path_counts: Dict[str, int]
 
     neurodata_types: List[NeurodataType] = []
     for a in all_assets:
@@ -39,9 +39,10 @@ def main():
                     neurodata_types.append(existing)
                 if a.dandiset_id not in existing.dandiset_ids:
                     existing.dandiset_ids.append(a.dandiset_id)
-                if g.path not in existing.paths:
-                    existing.paths.append(g.path)
-    
+                if g.path not in existing.path_counts:
+                    existing.path_counts[g.path] = 0
+                existing.path_counts[g.path] += 1
+
     # sort by neurodata_type
     neurodata_types = sorted(neurodata_types, key=lambda x: x.neurodata_type)
 
@@ -56,7 +57,12 @@ def main():
     # Create a markdown table with paths
     table2 = []
     for n in neurodata_types:
-        table2.append([n.neurodata_type, ' '.join(_abbrievate(sorted(n.paths)))])
+        paths = n.path_counts.keys()
+        paths = sorted(paths, key=lambda x: n.path_counts[x], reverse=True)
+        table2.append([n.neurodata_type, ', '.join(_abbrievate([
+            f'[{p} ({n.path_counts[p]})'
+            for p in paths
+        ], 10))])
 
     import datetime
 
@@ -71,8 +77,7 @@ def main():
         f.write(tabulate(table2, headers=['Neurodata Type', 'Paths'], tablefmt='github'))
 
 
-def _abbrievate(x: List[str]):
-    max_num = 15
+def _abbrievate(x: List[str], max_num: int):
     if len(x) <= max_num:
         return x
     return x[:max_num] + [f'... and {len(x) - max_num} more...']
