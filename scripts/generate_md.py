@@ -3,6 +3,7 @@ from typing import List, Dict
 from dandi_nwb_meta import fetch_all_dandisets, load_existing_output_from_bucket, DandiNwbMetaAsset
 from tabulate import tabulate
 import datetime
+from h5tojson import H5ToJsonGroup, H5ToJsonDataset, H5ToJsonFile
 
 
 def main():
@@ -30,19 +31,19 @@ def main():
 
     neurodata_types: List[NeurodataType] = []
     for a in all_assets:
-        groups = a.asset.nwb_metadata.groups
-        for g in groups:
-            if 'neurodata_type' in g.attrs:
-                nt = g.attrs.get('namespace', '') + '.' + g.attrs['neurodata_type']
+        all_groups, _ = _get_all_groups_and_datasets(a.asset.nwb_metadata)
+        for path, g in all_groups.items():
+            if 'neurodata_type' in g.attributes:
+                nt = g.attributes.get('namespace', '') + '.' + g.attributes['neurodata_type']
                 existing = next((n for n in neurodata_types if n.neurodata_type == nt), None)
                 if not existing:
                     existing = NeurodataType(neurodata_type=nt, dandiset_ids=[], path_counts={})
                     neurodata_types.append(existing)
                 if a.dandiset_id not in existing.dandiset_ids:
                     existing.dandiset_ids.append(a.dandiset_id)
-                if g.path not in existing.path_counts:
-                    existing.path_counts[g.path] = 0
-                existing.path_counts[g.path] += 1
+                if path not in existing.path_counts:
+                    existing.path_counts[path] = 0
+                existing.path_counts[path] += 1
 
     # sort by neurodata_type
     neurodata_types = sorted(neurodata_types, key=lambda x: x.neurodata_type)
@@ -115,6 +116,22 @@ def _abbrievate(x: List[str], max_num: int):
     if len(x) <= max_num:
         return x
     return x[:max_num] + [f'... and {len(x) - max_num} more...']
+
+
+def _get_all_groups_and_datasets(f: H5ToJsonFile):
+    groups: Dict[str, H5ToJsonGroup] = []
+    datasets: Dict[str, H5ToJsonDataset] = []
+
+    def _process_group(g: H5ToJsonGroup, path: str):
+        nonlocal groups
+        groups[path] = g
+        for k, v in g.groups.items():
+            _process_group(v, path + '/' + k)
+        for k, v in g.datasets.items():
+            datasets[path + '/' + k] = v
+
+    _process_group(f.file, '/')
+    return groups, datasets
 
 
 if __name__ == '__main__':

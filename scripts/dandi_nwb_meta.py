@@ -2,16 +2,15 @@ import os
 from tempfile import TemporaryDirectory
 import dandi.dandiarchive as da
 import json
+import warnings
 import urllib
 import time
-import h5py
 from typing import List
 from typing import Union, Any
 from pydantic import BaseModel, Field
-import numpy as np
-import remfile
 import gzip
 import boto3
+from h5tojson import h5_to_object, H5ToJsonFile, H5ToJsonOpts
 
 
 def process_dandisets(
@@ -108,39 +107,47 @@ def process_dandiset(
                     X.nwb_assets.append(item)
                     continue
                 print(f"{asset_num}: {X.dandiset_id} | {asset.path}")
+                opts = H5ToJsonOpts(
+                    dataset_inline_max_bytes=0,
+                    object_dataset_inline_max_bytes=0,
+                    compound_dtype_dataset_inline_max_bytes=0
+                )
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    nwb_metadata = h5_to_object(asset.download_url, opts)
                 # Create the new asset
                 A = DandiNwbMetaAsset(
                     asset_id=asset.identifier,
                     asset_path=asset.path,
-                    nwb_metadata=DandiNWbMetaAssetNwbMetadata(groups=[], datasets=[]),
+                    nwb_metadata=nwb_metadata
                 )
-                # Open the file for lazy loading
-                file = remfile.File(asset.download_url, verbose=False)
-                with h5py.File(file, "r") as h5_file:
-                    all_groups_in_h5_file = _get_h5_groups(h5_file)
-                    # Add the groups to the asset
-                    for group in all_groups_in_h5_file:
-                        A.nwb_metadata.groups.append(
-                            H5MetadataGroup(
-                                path=group.name, attrs=json.loads(_attrs_to_json(group))
-                            )
-                        )
-                    # Add the datasets to the asset
-                    all_datasets_in_h5_file = _get_h5_datasets(h5_file)
-                    for dataset in all_datasets_in_h5_file:
-                        dataset: h5py.Dataset = dataset
-                        dtype = _dtype_to_str(dataset)
-                        A.nwb_metadata.datasets.append(
-                            H5MetadataDataset(
-                                path=dataset.name,
-                                attrs=json.loads(_attrs_to_json(dataset)),
-                                shape=_format_shape(dataset),
-                                chunks=[d for d in dataset.chunks] if dataset.chunks else None,
-                                compression=dataset.compression,
-                                compression_opts=dataset.compression_opts,
-                                dtype=dtype,
-                            )
-                        )
+                # # Open the file for lazy loading
+                # file = remfile.File(asset.download_url, verbose=False)
+                # with h5py.File(file, "r") as h5_file:
+                #     all_groups_in_h5_file = _get_h5_groups(h5_file)
+                #     # Add the groups to the asset
+                #     for group in all_groups_in_h5_file:
+                #         A.nwb_metadata.groups.append(
+                #             H5MetadataGroup(
+                #                 path=group.name, attrs=json.loads(_attrs_to_json(group))
+                #             )
+                #         )
+                #     # Add the datasets to the asset
+                #     all_datasets_in_h5_file = _get_h5_datasets(h5_file)
+                #     for dataset in all_datasets_in_h5_file:
+                #         dataset: h5py.Dataset = dataset
+                #         dtype = _dtype_to_str(dataset)
+                #         A.nwb_metadata.datasets.append(
+                #             H5MetadataDataset(
+                #                 path=dataset.name,
+                #                 attrs=json.loads(_attrs_to_json(dataset)),
+                #                 shape=_format_shape(dataset),
+                #                 chunks=[d for d in dataset.chunks] if dataset.chunks else None,
+                #                 compression=dataset.compression,
+                #                 compression_opts=dataset.compression_opts,
+                #                 dtype=dtype,
+                #             )
+                #         )
                 # Add the asset to the dandiset
                 X.nwb_assets.append(A)
                 something_changed = True
@@ -177,7 +184,7 @@ class DandiNWbMetaAssetNwbMetadata(BaseModel):
 class DandiNwbMetaAsset(BaseModel):
     asset_id: str = Field(description="Asset identifier")
     asset_path: str = Field(description="Asset path")
-    nwb_metadata: DandiNWbMetaAssetNwbMetadata = Field(description="NWB metadata")
+    nwb_metadata: H5ToJsonFile = Field(description="NWB metadata")
 
 
 class DandiNwbMetaDandiset(BaseModel):
@@ -186,106 +193,106 @@ class DandiNwbMetaDandiset(BaseModel):
     nwb_assets: List[DandiNwbMetaAsset] = Field(description="List of assets")
 
 
-def _get_h5_groups(h5_file: h5py.File) -> list:
-    """Returns a list of all groups in an h5 file.
+# def _get_h5_groups(h5_file: h5py.File) -> list:
+#     """Returns a list of all groups in an h5 file.
 
-    Args:
-        h5_file (h5py.File): The h5 file.
+#     Args:
+#         h5_file (h5py.File): The h5 file.
 
-    Returns:
-        list: A list of all groups in the h5 file.
-    """
-    groups = []
+#     Returns:
+#         list: A list of all groups in the h5 file.
+#     """
+#     groups = []
 
-    def _process_node(node: h5py.Group):
-        groups.append(node)
-        for child in node.values():
-            if isinstance(child, h5py.Group):
-                _process_node(child)
-    _process_node(h5_file)
-    return groups
-
-
-def _get_h5_datasets(h5_file: h5py.File) -> list:
-    """Returns a list of all datasets in an h5 file.
-
-    Args:
-        h5_file (h5py.File): The h5 file.
-
-    Returns:
-        list: A list of all datasets in the h5 file.
-    """
-    datasets = []
-
-    def _process_node(node: h5py.Group):
-        for child in node.values():
-            if isinstance(child, h5py.Dataset):
-                datasets.append(child)
-            elif isinstance(child, h5py.Group):
-                _process_node(child)
-    _process_node(h5_file)
-    return datasets
+#     def _process_node(node: h5py.Group):
+#         groups.append(node)
+#         for child in node.values():
+#             if isinstance(child, h5py.Group):
+#                 _process_node(child)
+#     _process_node(h5_file)
+#     return groups
 
 
-def _attrs_to_json(group: Union[h5py.Group, h5py.Dataset]) -> str:
-    """Converts the attributes of an HDF5 group or dataset to a JSON-serializable format."""
-    attrs_dict = {}
-    for attr_name in group.attrs:
-        value = group.attrs[attr_name]
+# def _get_h5_datasets(h5_file: h5py.File) -> list:
+#     """Returns a list of all datasets in an h5 file.
 
-        # Convert NumPy arrays to lists
-        if isinstance(value, np.ndarray):
-            value = value.tolist()
-        # Handle other non-serializable types as needed
-        elif isinstance(value, np.int64):
-            value = int(value)
-        # Handle References
-        elif isinstance(value, h5py.Reference):
-            value = str(value)
+#     Args:
+#         h5_file (h5py.File): The h5 file.
 
-        # check if json serializable
-        try:
-            json.dumps(value)
-        except TypeError:
-            value = "Not JSON serializable"
+#     Returns:
+#         list: A list of all datasets in the h5 file.
+#     """
+#     datasets = []
 
-        attrs_dict[attr_name] = value
-
-    return json.dumps(attrs_dict)
+#     def _process_node(node: h5py.Group):
+#         for child in node.values():
+#             if isinstance(child, h5py.Dataset):
+#                 datasets.append(child)
+#             elif isinstance(child, h5py.Group):
+#                 _process_node(child)
+#     _process_node(h5_file)
+#     return datasets
 
 
-def _dtype_to_str(dataset: h5py.Dataset) -> str:
-    """Converts the dtype of an HDF5 dataset to a string."""
-    dtype = dataset.dtype
-    if dtype == np.dtype("int8"):
-        return "int8"
-    elif dtype == np.dtype("uint8"):
-        return "uint8"
-    elif dtype == np.dtype("int16"):
-        return "int16"
-    elif dtype == np.dtype("uint16"):
-        return "uint16"
-    elif dtype == np.dtype("int32"):
-        return "int32"
-    elif dtype == np.dtype("uint32"):
-        return "uint32"
-    elif dtype == np.dtype("int64"):
-        return "int64"
-    elif dtype == np.dtype("uint64"):
-        return "uint64"
-    elif dtype == np.dtype("float32"):
-        return "float32"
-    elif dtype == np.dtype("float64"):
-        return "float64"
-    else:
-        # raise ValueError(f"Unsupported dtype: {dtype}")
-        return "Unsupported dtype"
+# def _attrs_to_json(group: Union[h5py.Group, h5py.Dataset]) -> str:
+#     """Converts the attributes of an HDF5 group or dataset to a JSON-serializable format."""
+#     attrs_dict = {}
+#     for attr_name in group.attrs:
+#         value = group.attrs[attr_name]
+
+#         # Convert NumPy arrays to lists
+#         if isinstance(value, np.ndarray):
+#             value = value.tolist()
+#         # Handle other non-serializable types as needed
+#         elif isinstance(value, np.int64):
+#             value = int(value)
+#         # Handle References
+#         elif isinstance(value, h5py.Reference):
+#             value = str(value)
+
+#         # check if json serializable
+#         try:
+#             json.dumps(value)
+#         except TypeError:
+#             value = "Not JSON serializable"
+
+#         attrs_dict[attr_name] = value
+
+#     return json.dumps(attrs_dict)
 
 
-def _format_shape(dataset: h5py.Dataset) -> list:
-    """Formats the shape of an HDF5 dataset to a list."""
-    shape = dataset.shape
-    return [int(dim) for dim in shape]
+# def _dtype_to_str(dataset: h5py.Dataset) -> str:
+#     """Converts the dtype of an HDF5 dataset to a string."""
+#     dtype = dataset.dtype
+#     if dtype == np.dtype("int8"):
+#         return "int8"
+#     elif dtype == np.dtype("uint8"):
+#         return "uint8"
+#     elif dtype == np.dtype("int16"):
+#         return "int16"
+#     elif dtype == np.dtype("uint16"):
+#         return "uint16"
+#     elif dtype == np.dtype("int32"):
+#         return "int32"
+#     elif dtype == np.dtype("uint32"):
+#         return "uint32"
+#     elif dtype == np.dtype("int64"):
+#         return "int64"
+#     elif dtype == np.dtype("uint64"):
+#         return "uint64"
+#     elif dtype == np.dtype("float32"):
+#         return "float32"
+#     elif dtype == np.dtype("float64"):
+#         return "float64"
+#     else:
+#         # raise ValueError(f"Unsupported dtype: {dtype}")
+#         return "Unsupported dtype"
+
+
+# def _format_shape(dataset: h5py.Dataset) -> list:
+#     """Formats the shape of an HDF5 dataset to a list."""
+#     shape = dataset.shape
+#     return [int(dim) for dim in shape]
 
 
 def load_existing_output_from_bucket(dandiset_id: str) -> DandiNwbMetaDandiset:
@@ -310,7 +317,7 @@ def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMet
 
 
 def _get_object_key_for_output(dandiset_id: str) -> str:
-    return f'dandi-nwb-meta/dandisets/{dandiset_id}.json.gz'
+    return f'dandi-nwb-meta-2/dandisets/{dandiset_id}.json.gz'
 
 
 def _load_existing_output_from_file(output_fname: str) -> DandiNwbMetaDandiset:
@@ -387,7 +394,35 @@ def _upload_file_to_s3(s3, bucket, object_key, fname):
 def _save_output_to_file(output_fname: str, X: DandiNwbMetaDandiset):
     if output_fname.endswith(".gz"):
         with gzip.open(output_fname, "wb") as f:
-            f.write(json.dumps(X.dict()).encode())
+            f.write(json.dumps(_remove_empty_dicts_in_dict(X.dict())).encode())
     else:
         with open(output_fname, "w") as f:
-            json.dump(X.dict(), f, indent=2)
+            json.dump(_remove_empty_dicts_in_dict(X.dict()), f, indent=2)
+
+
+def _remove_empty_dicts_in_dict(x: dict):
+    ret = {}
+    for k, v in x.items():
+        if isinstance(v, dict):
+            if not v:
+                continue
+            v2 = _remove_empty_dicts_in_dict(v)
+        elif isinstance(v, list):
+            v2 = _remove_empty_dicts_in_list(v)
+        else:
+            v2 = v
+        ret[k] = v2
+    return ret
+
+
+def _remove_empty_dicts_in_list(x: list):
+    ret = []
+    for v in x:
+        if isinstance(v, dict):
+            v2 = _remove_empty_dicts_in_dict(v)
+        elif isinstance(v, list):
+            v2 = _remove_empty_dicts_in_list(v)
+        else:
+            v2 = v
+        ret.append(v2)
+    return ret
