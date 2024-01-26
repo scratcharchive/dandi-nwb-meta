@@ -119,8 +119,8 @@ def _abbrievate(x: List[str], max_num: int):
 
 
 def _get_all_groups_and_datasets(f: H5ToJsonFile):
-    groups: Dict[str, H5ToJsonGroup] = []
-    datasets: Dict[str, H5ToJsonDataset] = []
+    groups: Dict[str, H5ToJsonGroup] = {}
+    datasets: Dict[str, H5ToJsonDataset] = {}
 
     def _process_group(g: H5ToJsonGroup, path: str):
         nonlocal groups
