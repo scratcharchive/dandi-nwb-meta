@@ -31,7 +31,7 @@ def main():
 
     neurodata_types: List[NeurodataType] = []
     for a in all_assets:
-        all_groups, _ = _get_all_groups_and_datasets(a.asset.nwb_metadata)
+        all_groups, _ = a.asset.nwb_metadata.get_all_groups_and_datasets()
         for path, g in all_groups.items():
             if 'neurodata_type' in g.attributes:
                 nt = g.attributes.get('namespace', '') + '.' + g.attributes['neurodata_type']
@@ -94,9 +94,10 @@ def main():
             existing = DandisetInfo(dandiset_id=a.dandiset_id, neurodata_types=[], num_assets_processed=0)
             dandiset_infos.append(existing)
         existing.num_assets_processed += 1
-        for g in a.asset.nwb_metadata.groups:
-            if 'neurodata_type' in g.attrs:
-                nt = g.attrs.get('namespace', '') + '.' + g.attrs['neurodata_type']
+        all_groups, _ = a.asset.nwb_metadata.get_all_groups_and_datasets()
+        for path, g in all_groups.items():
+            if 'neurodata_type' in g.attributes:
+                nt = g.attributes.get('namespace', '') + '.' + g.attributes['neurodata_type']
                 if nt not in existing.neurodata_types:
                     existing.neurodata_types.append(nt)
     dandiset_infos = sorted(dandiset_infos, key=lambda x: x.dandiset_id)
