@@ -57,7 +57,7 @@ def main():
         table1.append([n.neurodata_type, ' '.join(dandiset_links)])
 
     # Write to neurodata_types.md
-    with open('neurodata_types.md', 'w') as f:
+    with open('neurodata_types_new.md', 'w') as f:
         f.write('# Neurodata Types in DANDI Archive\n\n')
         f.write('This is not an exhaustive list. It reflects only a subset of the data that have been parsed to date and favors dandisets that have been updated more recently. Only public dandisets are included.\n\n')
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -75,7 +75,7 @@ def main():
         ], 10))])
 
     # Write to neurodata_types_2.md
-    with open('neurodata_types_2.md', 'w') as f:
+    with open('neurodata_types_2_new.md', 'w') as f:
         f.write('# Neurodata Types in DANDI Archive\n\n')
         f.write('This is not an exhaustive list. It reflects only a subset of the data that have been parsed to date and favors dandisets that have been updated more recently. Only public dandisets are included.\n\n')
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -104,7 +104,7 @@ def main():
     for d in dandiset_infos:
         dandiset_link = f'[{d.dandiset_id}](https://dandiarchive.org/dandiset/{d.dandiset_id})'
         table3.append([dandiset_link, f'{d.num_assets_processed}', ', '.join(sorted(d.neurodata_types))])
-    with open('dandisets.md', 'w') as f:
+    with open('dandisets_new.md', 'w') as f:
         f.write('# Neurodata Types in DANDI Archive\n\n')
         f.write('This is not an exhaustive list. It reflects only a subset of the data that have been parsed to date and favors dandisets that have been updated more recently. Only public dandisets are included.\n\n')
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
