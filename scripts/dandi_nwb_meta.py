@@ -108,9 +108,7 @@ def process_dandiset(
                     continue
                 print(f"{asset_num}: {X.dandiset_id} | {asset.path}")
                 opts = H5ToJsonOpts(
-                    dataset_inline_max_bytes=0,
-                    object_dataset_inline_max_bytes=0,
-                    compound_dtype_dataset_inline_max_bytes=0
+                    skip_all_dataset_data=True
                 )
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
