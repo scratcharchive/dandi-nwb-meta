@@ -152,6 +152,7 @@ def process_dandiset(
             if time.time() - timer > max_time:
                 print("Time limit reached for this dandiset.")
                 break
+    something_changed = True  # TODO: remove this line once all of the files have been migrated to dandi-nwb-meta directory
     if something_changed:
         print(f'Saving output for {dandiset_id}')
         _save_output(s3, dandiset_id, X)
@@ -295,13 +296,18 @@ class DandiNwbMetaDandiset(BaseModel):
 
 def load_existing_output_from_bucket(dandiset_id: str) -> DandiNwbMetaDandiset:
     with TemporaryDirectory() as tempdir:
-        object_key = _get_object_key_for_output(dandiset_id)
-        url = f'https://neurosift.org/{object_key}'
+        object_key_2 = _get_object_key_for_output_2(dandiset_id)
+        url_2 = f'https://neurosift.org/{object_key_2}'
         tmp_output_fname = os.path.join(tempdir, 'output.json.gz')
         try:
-            _download_file(url, tmp_output_fname)
+            _download_file(url_2, tmp_output_fname)
         except urllib.error.HTTPError:
-            return None
+            try:
+                object_key = _get_object_key_for_output(dandiset_id)
+                url = f'https://neurosift.org/{object_key}'
+                _download_file(url, tmp_output_fname)
+            except urllib.error.HTTPError:
+                return None
         return _load_existing_output_from_file(tmp_output_fname)
 
 
@@ -314,8 +320,12 @@ def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMet
         return _load_existing_output_from_file(output_fname)
 
 
-def _get_object_key_for_output(dandiset_id: str) -> str:
+def _get_object_key_for_output_2(dandiset_id: str) -> str:
     return f'dandi-nwb-meta-2/dandisets/{dandiset_id}.json.gz'
+
+
+def _get_object_key_for_output(dandiset_id: str) -> str:
+    return f'dandi-nwb-meta/dandisets/{dandiset_id}.json.gz'
 
 
 def _load_existing_output_from_file(output_fname: str) -> DandiNwbMetaDandiset:
@@ -356,6 +366,11 @@ def _save_output(s3: Union[Any, None], dandiset_id: str, X: DandiNwbMetaDandiset
             object_key = _get_object_key_for_output(dandiset_id)
             print(f'Uploading output to {object_key}')
             _upload_file_to_s3(s3, 'neurosift', object_key, tmp_output_fname)
+
+            # TODO: remove this section once all of the files have been migrated to dandi-nwb-meta directory
+            object_key_2 = _get_object_key_for_output_2(dandiset_id)
+            print(f'Deleting file from {object_key_2}')
+            _delete_file_from_s3(s3, 'neurosift', object_key_2)
     else:
         output_fname = f"dandisets/{dandiset_id}.json"
         # make the output directory if it doesn't exist
@@ -387,6 +402,14 @@ def _upload_file_to_s3(s3, bucket, object_key, fname):
     if content_type is not None:
         extra_args['ContentType'] = content_type
     s3.upload_file(fname, bucket, object_key, ExtraArgs=extra_args)
+
+
+def _delete_file_from_s3(s3, bucket, object_key):
+    try:
+        s3.delete_object(Bucket=bucket, Key=object_key)
+    except Exception as e:
+        print(str(e))
+        print('Failed to delete file from S3.')
 
 
 def _save_output_to_file(output_fname: str, X: DandiNwbMetaDandiset):
