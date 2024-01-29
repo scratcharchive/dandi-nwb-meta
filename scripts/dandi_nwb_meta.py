@@ -13,11 +13,7 @@ import boto3
 from h5tojson import h5_to_object, H5ToJsonFile, H5ToJsonOpts
 
 
-def process_dandisets(
-    *,
-    max_time: float,
-    max_time_per_dandiset: float
-):
+def process_dandisets(*, max_time: float, max_time_per_dandiset: float):
     dandisets = fetch_all_dandisets()
 
     timer = time.time()
@@ -26,7 +22,7 @@ def process_dandisets(
         print(f"Processing {dandiset.dandiset_id} version {dandiset.version}")
         process_dandiset(dandiset.dandiset_id, max_time_per_dandiset)
         elapsed = time.time() - timer
-        print(f'Time elapsed: {elapsed} seconds')
+        print(f"Time elapsed: {elapsed} seconds")
         if elapsed > max_time:
             print("Time limit reached.")
             break
@@ -38,46 +34,45 @@ class Dandiset(BaseModel):
 
 
 def fetch_all_dandisets():
-    url = 'https://api.dandiarchive.org/api/dandisets/?page=1&page_size=5000&ordering=-modified&draft=true&empty=false&embargoed=false'
+    url = "https://api.dandiarchive.org/api/dandisets/?page=1&page_size=5000&ordering=-modified&draft=true&empty=false&embargoed=false"
     with urllib.request.urlopen(url) as response:
         X = json.loads(response.read())
 
     dandisets: List[Dandiset] = []
-    for ds in X['results']:
-        pv = ds['most_recent_published_version']
-        dv = ds['draft_version']
-        dandisets.append(Dandiset(
-            dandiset_id=ds['identifier'],
-            version=pv['version'] if pv else dv['version']
-        ))
+    for ds in X["results"]:
+        pv = ds["most_recent_published_version"]
+        dv = ds["draft_version"]
+        dandisets.append(
+            Dandiset(
+                dandiset_id=ds["identifier"],
+                version=pv["version"] if pv else dv["version"],
+            )
+        )
 
     return dandisets
 
 
-def process_dandiset(
-    dandiset_id: str,
-    max_time: float
-):
+def process_dandiset(dandiset_id: str, max_time: float):
     timer = time.time()
 
-    if os.environ.get('AWS_ACCESS_KEY_ID') is not None:
+    if os.environ.get("AWS_ACCESS_KEY_ID") is not None:
         s3 = boto3.client(
-            's3',
-            aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-            aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
-            endpoint_url=os.environ['S3_ENDPOINT_URL'],
-            region_name='auto'  # for cloudflare
+            "s3",
+            aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+            endpoint_url=os.environ["S3_ENDPOINT_URL"],
+            region_name="auto",  # for cloudflare
         )
     else:
         s3 = None
 
     # Load existing output
-    print('Checking for existing output')
+    print("Checking for existing output")
     existing = _load_existing_output(s3, dandiset_id)
     if existing is not None:
-        print(f'Found {len(existing.nwb_assets)} existing assets.')
+        print(f"Found {len(existing.nwb_assets)} existing assets.")
     else:
-        print('No existing output found.')
+        print("No existing output found.")
 
     # Create the dandi parsed url
     parsed_url = da.parse_dandi_url(f"https://dandiarchive.org/dandiset/{dandiset_id}")
@@ -97,19 +92,27 @@ def process_dandiset(
             asset_num += 1
             if asset.path.endswith(".nwb"):  # only process NWB files
                 # Check if the asset has already been processed
-                item = next(
-                    (x for x in existing.nwb_assets if x.asset_id == asset.identifier),
-                    None,
-                ) if existing else None
+                item = (
+                    next(
+                        (
+                            x
+                            for x in existing.nwb_assets
+                            if x.asset_id == asset.identifier
+                        ),
+                        None,
+                    )
+                    if existing
+                    else None
+                )
                 if item:
                     # The asset has already been processed in the output file
-                    print(f"{asset_num}: {X.dandiset_id} | {asset.path} | already processed")
+                    print(
+                        f"{asset_num}: {X.dandiset_id} | {asset.path} | already processed"
+                    )
                     X.nwb_assets.append(item)
                     continue
                 print(f"{asset_num}: {X.dandiset_id} | {asset.path}")
-                opts = H5ToJsonOpts(
-                    skip_all_dataset_data=True
-                )
+                opts = H5ToJsonOpts(skip_all_dataset_data=True)
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     nwb_metadata = h5_to_object(asset.download_url, opts)
@@ -117,7 +120,7 @@ def process_dandiset(
                 A = DandiNwbMetaAsset(
                     asset_id=asset.identifier,
                     asset_path=asset.path,
-                    nwb_metadata=nwb_metadata
+                    nwb_metadata=nwb_metadata,
                 )
                 # # Open the file for lazy loading
                 # file = remfile.File(asset.download_url, verbose=False)
@@ -154,10 +157,10 @@ def process_dandiset(
                 break
     something_changed = True  # TODO: remove this line once all of the files have been migrated to dandi-nwb-meta directory
     if something_changed:
-        print(f'Saving output for {dandiset_id}')
+        print(f"Saving output for {dandiset_id}")
         _save_output(s3, dandiset_id, X)
     else:
-        print(f'Not saving output for {dandiset_id} because nothing changed.')
+        print(f"Not saving output for {dandiset_id} because nothing changed.")
 
 
 class H5MetadataGroup(BaseModel):
@@ -172,7 +175,9 @@ class H5MetadataDataset(BaseModel):
     dtype: str = Field(description="Data type of the dataset")
     chunks: Union[list, None] = Field(description="Chunk shape of the dataset")
     compression: Union[str, None] = Field(description="Compression type of the dataset")
-    compression_opts: Union[Any, None] = Field(description="Compression options of the dataset")
+    compression_opts: Union[Any, None] = Field(
+        description="Compression options of the dataset"
+    )
 
 
 class DandiNWbMetaAssetNwbMetadata(BaseModel):
@@ -296,22 +301,19 @@ class DandiNwbMetaDandiset(BaseModel):
 
 def load_existing_output_from_bucket(dandiset_id: str) -> DandiNwbMetaDandiset:
     with TemporaryDirectory() as tempdir:
-        object_key_2 = _get_object_key_for_output_2(dandiset_id)
-        url_2 = f'https://neurosift.org/{object_key_2}'
-        tmp_output_fname = os.path.join(tempdir, 'output.json.gz')
+        tmp_output_fname = os.path.join(tempdir, "output.json.gz")
         try:
-            _download_file(url_2, tmp_output_fname)
+            object_key = _get_object_key_for_output(dandiset_id)
+            url = f"https://neurosift.org/{object_key}"
+            _download_file(url, tmp_output_fname)
         except urllib.error.HTTPError:
-            try:
-                object_key = _get_object_key_for_output(dandiset_id)
-                url = f'https://neurosift.org/{object_key}'
-                _download_file(url, tmp_output_fname)
-            except urllib.error.HTTPError:
-                return None
+            return None
         return _load_existing_output_from_file(tmp_output_fname)
 
 
-def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMetaDandiset:
+def _load_existing_output(
+    s3: Union[Any, None], dandiset_id: str
+) -> DandiNwbMetaDandiset:
     """Loads the existing output for a dandiset."""
     if s3 is not None:
         return load_existing_output_from_bucket(dandiset_id)
@@ -320,12 +322,8 @@ def _load_existing_output(s3: Union[Any, None], dandiset_id: str) -> DandiNwbMet
         return _load_existing_output_from_file(output_fname)
 
 
-def _get_object_key_for_output_2(dandiset_id: str) -> str:
-    return f'dandi-nwb-meta-2/dandisets/{dandiset_id}.json.gz'
-
-
 def _get_object_key_for_output(dandiset_id: str) -> str:
-    return f'dandi-nwb-meta/dandisets/{dandiset_id}.json.gz'
+    return f"dandi-nwb-meta/dandisets/{dandiset_id}.json.gz"
 
 
 def _load_existing_output_from_file(output_fname: str) -> DandiNwbMetaDandiset:
@@ -347,7 +345,7 @@ def _download_file(url: str, output_fname: str):
     """Downloads a file from a URL."""
     with open(output_fname, "wb") as f:
         # The User-Agent header is required so that cloudflare doesn't block the request
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req) as response:
             chunk_size = 1024
             while True:
@@ -361,16 +359,11 @@ def _save_output(s3: Union[Any, None], dandiset_id: str, X: DandiNwbMetaDandiset
     """Saves the output for a dandiset."""
     if s3 is not None:
         with TemporaryDirectory() as tempdir:
-            tmp_output_fname = os.path.join(tempdir, 'output.json.gz')
+            tmp_output_fname = os.path.join(tempdir, "output.json.gz")
             _save_output_to_file(tmp_output_fname, X)
             object_key = _get_object_key_for_output(dandiset_id)
-            print(f'Uploading output to {object_key}')
-            _upload_file_to_s3(s3, 'neurosift', object_key, tmp_output_fname)
-
-            # TODO: remove this section once all of the files have been migrated to dandi-nwb-meta directory
-            object_key_2 = _get_object_key_for_output_2(dandiset_id)
-            print(f'Deleting file from {object_key_2}')
-            _delete_file_from_s3(s3, 'neurosift', object_key_2)
+            print(f"Uploading output to {object_key}")
+            _upload_file_to_s3(s3, "neurosift", object_key, tmp_output_fname)
     else:
         output_fname = f"dandisets/{dandiset_id}.json"
         # make the output directory if it doesn't exist
@@ -380,27 +373,27 @@ def _save_output(s3: Union[Any, None], dandiset_id: str, X: DandiNwbMetaDandiset
 
 
 def _upload_file_to_s3(s3, bucket, object_key, fname):
-    if fname.endswith('.html'):
-        content_type = 'text/html'
-    elif fname.endswith('.js'):
-        content_type = 'application/javascript'
-    elif fname.endswith('.css'):
-        content_type = 'text/css'
-    elif fname.endswith('.png'):
-        content_type = 'image/png'
-    elif fname.endswith('.jpg'):
-        content_type = 'image/jpeg'
-    elif fname.endswith('.svg'):
-        content_type = 'image/svg+xml'
-    elif fname.endswith('.json'):
-        content_type = 'application/json'
-    elif fname.endswith('.gz'):
-        content_type = 'application/gzip'
+    if fname.endswith(".html"):
+        content_type = "text/html"
+    elif fname.endswith(".js"):
+        content_type = "application/javascript"
+    elif fname.endswith(".css"):
+        content_type = "text/css"
+    elif fname.endswith(".png"):
+        content_type = "image/png"
+    elif fname.endswith(".jpg"):
+        content_type = "image/jpeg"
+    elif fname.endswith(".svg"):
+        content_type = "image/svg+xml"
+    elif fname.endswith(".json"):
+        content_type = "application/json"
+    elif fname.endswith(".gz"):
+        content_type = "application/gzip"
     else:
         content_type = None
     extra_args = {}
     if content_type is not None:
-        extra_args['ContentType'] = content_type
+        extra_args["ContentType"] = content_type
     s3.upload_file(fname, bucket, object_key, ExtraArgs=extra_args)
 
 
@@ -409,7 +402,7 @@ def _delete_file_from_s3(s3, bucket, object_key):
         s3.delete_object(Bucket=bucket, Key=object_key)
     except Exception as e:
         print(str(e))
-        print('Failed to delete file from S3.')
+        print("Failed to delete file from S3.")
 
 
 def _save_output_to_file(output_fname: str, X: DandiNwbMetaDandiset):
