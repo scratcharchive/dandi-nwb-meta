@@ -155,7 +155,6 @@ def process_dandiset(dandiset_id: str, max_time: float):
             if time.time() - timer > max_time:
                 print("Time limit reached for this dandiset.")
                 break
-    something_changed = True  # TODO: remove this line once all of the files have been migrated to dandi-nwb-meta directory
     if something_changed:
         print(f"Saving output for {dandiset_id}")
         _save_output(s3, dandiset_id, X)
@@ -163,26 +162,26 @@ def process_dandiset(dandiset_id: str, max_time: float):
         print(f"Not saving output for {dandiset_id} because nothing changed.")
 
 
-class H5MetadataGroup(BaseModel):
-    path: str = Field(description="Path to the group")
-    attrs: dict = Field(description="Attributes of the group")
+# class H5MetadataGroup(BaseModel):
+#     path: str = Field(description="Path to the group")
+#     attrs: dict = Field(description="Attributes of the group")
 
 
-class H5MetadataDataset(BaseModel):
-    path: str = Field(description="Path to the dataset")
-    attrs: dict = Field(description="Attributes of the dataset")
-    shape: list = Field(description="Shape of the dataset")
-    dtype: str = Field(description="Data type of the dataset")
-    chunks: Union[list, None] = Field(description="Chunk shape of the dataset")
-    compression: Union[str, None] = Field(description="Compression type of the dataset")
-    compression_opts: Union[Any, None] = Field(
-        description="Compression options of the dataset"
-    )
+# class H5MetadataDataset(BaseModel):
+#     path: str = Field(description="Path to the dataset")
+#     attrs: dict = Field(description="Attributes of the dataset")
+#     shape: list = Field(description="Shape of the dataset")
+#     dtype: str = Field(description="Data type of the dataset")
+#     chunks: Union[list, None] = Field(description="Chunk shape of the dataset")
+#     compression: Union[str, None] = Field(description="Compression type of the dataset")
+#     compression_opts: Union[Any, None] = Field(
+#         description="Compression options of the dataset"
+#     )
 
 
-class DandiNWbMetaAssetNwbMetadata(BaseModel):
-    groups: List[H5MetadataGroup] = Field(description="HDF5 group metadata")
-    datasets: List[H5MetadataDataset] = Field(description="HDF5 dataset metadata")
+# class DandiNWbMetaAssetNwbMetadata(BaseModel):
+#     groups: List[H5MetadataGroup] = Field(description="HDF5 group metadata")
+#     datasets: List[H5MetadataDataset] = Field(description="HDF5 dataset metadata")
 
 
 class DandiNwbMetaAsset(BaseModel):
