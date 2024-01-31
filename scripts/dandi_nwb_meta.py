@@ -121,6 +121,7 @@ def process_dandiset(dandiset_id: str, max_time: float):
                     asset_id=asset.identifier,
                     asset_path=asset.path,
                     nwb_metadata=nwb_metadata,
+                    download_url=asset.download_url
                 )
                 # # Open the file for lazy loading
                 # file = remfile.File(asset.download_url, verbose=False)
@@ -188,6 +189,7 @@ class DandiNwbMetaAsset(BaseModel):
     asset_id: str = Field(description="Asset identifier")
     asset_path: str = Field(description="Asset path")
     nwb_metadata: H5ToJsonFile = Field(description="NWB metadata")
+    download_url: Union[str, None] = Field(None, description="Download URL for the asset")
 
 
 class DandiNwbMetaDandiset(BaseModel):
