@@ -18,15 +18,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Install h5tojson
-        run: |
-          git clone https://github.com/magland/h5tojson-fork
-          cd h5tojson-fork
-          git checkout use-pydantic
-          pip install -e .
       - name: process-dandisets
         run: |
-          python scripts/collect_dandi_nwb_meta.py
+          python workflow_scripts/collect_dandi_nwb_meta.py
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

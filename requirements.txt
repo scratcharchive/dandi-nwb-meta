@@ -4,4 +4,4 @@ h5py
 numpy
 remfile
 tabulate
-# in the future: h5tojson once it is on pypi
+git+https://github.com/rly/h5tojson.git
