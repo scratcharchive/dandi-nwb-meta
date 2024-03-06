@@ -18,9 +18,8 @@ jobs:
           pip install -r requirements.txt
       - name: Install h5tojson
         run: |
-          git clone https://github.com/magland/h5tojson-fork
-          cd h5tojson-fork
-          git checkout use-pydantic
+          git clone https://github.com/rly/h5tojson
+          cd h5tojson
           pip install -e .
       - name: generate-md
         run: |
