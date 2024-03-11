@@ -3,8 +3,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "37 3 * * *" # 3:37 AM UTC every day
-    - cron: "37 12 * * *" # 12:37 PM UTC every day
-    - cron: "37 21 * * *" # 9:37 PM UTC every day
+    # - cron: "37 12 * * *" # 12:37 PM UTC every day
+    # - cron: "37 21 * * *" # 9:37 PM UTC every day
 jobs:
   main:
     runs-on: ubuntu-latest
